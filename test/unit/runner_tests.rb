@@ -34,24 +34,19 @@ class ATestRunner::Runner
       Assert.stub(@config, :env_vars){ @env_vars }
 
       @test_paths   = [""]
-      @test_options = { :seed_value => Factory.integer }
     end
     subject{ @runner }
   end
 
   class InitTests < InitSetupTests
     setup do
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should have_readers :config, :cmd_str
 
     should "know its config" do
       assert_same @config, subject.config
-    end
-
-    should "apply the test options to the config" do
-      assert_equal @test_options[:seed_value], subject.config.seed_value
     end
 
     should "use the default test command by default" do
@@ -80,7 +75,7 @@ class ATestRunner::Runner
       list = Factory.boolean
       Assert.stub(@config, :list){ list }
 
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should "output the cmd str to stdout and but not execute it" do
@@ -100,7 +95,7 @@ class ATestRunner::Runner
       dry_run = Factory.boolean
       Assert.stub(@config, :dry_run){ dry_run }
 
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should "list out the test files to stdout and not execute the cmd str" do
@@ -114,7 +109,7 @@ class ATestRunner::Runner
     setup do
       Assert.stub(@config, :verbose){ true }
 
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should "use the verbose test command" do
@@ -143,7 +138,7 @@ class ATestRunner::Runner
   class ChangedOnlyTests < ChangedOnlySetupTests
     desc "and configured in changed only mode"
     setup do
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should "run a git cmd to determine which files to test" do
@@ -165,7 +160,7 @@ class ATestRunner::Runner
     setup do
       Assert.stub(@config, :debug){ true }
 
-      @runner = @class.new(@config, @test_paths, @test_options)
+      @runner = @class.new(@test_paths, config: @config)
     end
 
     should "output detailed debug info" do

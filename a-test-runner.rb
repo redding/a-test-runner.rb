@@ -28,7 +28,7 @@ module ATestRunner
       end
     end
 
-    attr_reader :stdout, :bin_name, :test_dir, :test_file_suffixes
+    attr_reader :stdout, :bin_name, :version, :test_dir, :test_file_suffixes
     attr_reader :default_test_cmd, :verbose_test_cmd
     attr_reader :seed_env_var_name, :env_vars
 
@@ -39,6 +39,7 @@ module ATestRunner
       @stdout = stdout || $stdout
 
       @bin_name           = BIN_NAME
+      @version            = VERSION
       @test_dir           = TEST_DIR
       @test_file_suffixes = TEST_FILE_SUFFIXES
       @default_test_cmd   = DEFAULT_TEST_CMD
@@ -63,83 +64,62 @@ module ATestRunner
         end
       end
     end
-  end
 
-  class CLI
-    def initialize(*argv)
-      @argv = argv
-      @clirb = CLIRB.new do
-        option "seed_value", "use a given seed to run tests", {
-          abbrev: "s", value: Integer
-        }
-        option "changed_only", "only run test files with changes", {
-          abbrev: "c"
-        }
-        option "changed_ref", "reference for changes, use with `-c` opt", {
-          abbrev: "r", value: ""
-        }
-        option "verbose", "output verbose runtime test info", {
-          abbrev: "v"
-        }
-        option "dry_run", "output the test command to $stdout"
-        option "list", "list test files on $stdout", {
-          abbrev: "l"
-        }
-        # show loaded test files, cli err backtraces, etc
-        option "debug", "run in debug mode", {
-          abbrev: "d"
-        }
+    def debug_msg(msg)
+      "[DEBUG] #{msg}"
+    end
+
+    def debug_puts(msg)
+      self.puts self.debug_msg(msg)
+    end
+
+    def puts(msg)
+      self.stdout.puts msg
+    end
+
+    def print(msg)
+      self.stdout.print msg
+    end
+
+    def bench(start_msg, &block)
+      if !self.debug
+        block.call; return
+      end
+      self.print bench_start_msg(start_msg)
+      RoundedMillisecondTime.new(Benchmark.measure(&block).real).tap do |time_in_ms|
+        self.puts bench_finish_msg(time_in_ms)
       end
     end
 
-    def run
-      begin
-        @clirb.parse!(@argv)
-        Runner.new(ATestRunner.config, @clirb.args, @clirb.opts).run
-      rescue CLIRB::HelpExit
-        ATestRunner.config.stdout.puts help
-      rescue CLIRB::VersionExit
-        ATestRunner.config.stdout.puts ATestRunner::VERSION
-      rescue CLIRB::Error => exception
-        ATestRunner.config.stdout.puts "#{exception.message}\n\n"
-        ATestRunner.config.stdout.puts  ATestRunner.config.debug ? exception.backtrace.join("\n") : help
-        exit(1)
-      rescue StandardError => exception
-        ATestRunner.config.stdout.puts "#{exception.class}: #{exception.message}"
-        ATestRunner.config.stdout.puts exception.backtrace.join("\n")
-        exit(1)
-      end
-      exit(0)
+    def bench_start_msg(msg)
+      self.debug_msg("#{msg}...".ljust(30))
     end
 
-    def help
-      "Usage: #{ATestRunner.config.bin_name} [options] [TESTS]\n\n"\
-      "Options:"\
-      "#{@clirb}"
+    def bench_finish_msg(time_in_ms)
+      " (#{time_in_ms} ms)"
     end
   end
 
   class Runner
     attr_reader :config, :cmd_str
 
-    def initialize(config, test_paths, test_options)
+    def initialize(test_paths, config:)
       @config = config
-      self.config.apply(test_options)
 
       paths = test_paths.empty? ? [*self.config.test_dir] : test_paths
       @test_files = lookup_test_files(paths)
 
       if self.config.debug
-        self.config.stdout.puts ATestRunner.debug_msg("#{@test_files.size} Test files:")
+        self.config.debug_puts "#{@test_files.size} Test files:"
         @test_files.each do |fa|
-          self.config.stdout.puts ATestRunner.debug_msg("  #{fa}")
+          self.config.debug_puts "  #{fa}"
         end
       end
 
       @cmd_str = "#{cmd_str_env} #{cmd_str_cmd} #{@test_files.join(" ")}"
       if self.config.debug && !@test_files.empty?
-        self.config.stdout.puts ATestRunner.debug_msg("Test command:")
-        self.config.stdout.puts ATestRunner.debug_msg("  #{@cmd_str}")
+        self.config.debug_puts "Test command:"
+        self.config.debug_puts "  #{@cmd_str}"
       end
     end
 
@@ -147,8 +127,8 @@ module ATestRunner
       if execute_cmd_str?
         system(self.cmd_str)
       else
-        self.config.stdout.puts @test_files.join("\n") if self.config.list
-        self.config.stdout.puts self.cmd_str           if self.config.dry_run
+        self.config.puts @test_files.join("\n") if self.config.list
+        self.config.puts self.cmd_str           if self.config.dry_run
       end
     end
 
@@ -177,7 +157,7 @@ module ATestRunner
         end
         files = result.files
         if config.debug
-          self.config.stdout.puts ATestRunner.debug_msg("  `#{result.cmd}`")
+          self.config.debug_puts "  `#{result.cmd}`"
         end
       else
         ATestRunner.bench("Lookup test files") do
@@ -305,41 +285,71 @@ module ATestRunner
 
   # ATestRunner
 
+  def self.clirb
+    @clirb ||= CLIRB.new do
+      option "seed_value", "use a given seed to run tests", {
+        abbrev: "s", value: Integer
+      }
+      option "changed_only", "only run test files with changes", {
+        abbrev: "c"
+      }
+      option "changed_ref", "reference for changes, use with `-c` opt", {
+        abbrev: "r", value: ""
+      }
+      option "verbose", "output verbose runtime test info", {
+        abbrev: "v"
+      }
+      option "dry_run", "output the test command to $stdout"
+      option "list", "list test files on $stdout", {
+        abbrev: "l"
+      }
+      # show loaded test files, cli err backtraces, etc
+      option "debug", "run in debug mode", {
+        abbrev: "d"
+      }
+    end
+  end
+
   def self.config
     @config ||= Config.new
   end
 
-  def self.debug?(argv)
-    !!argv.find{ |a| (a =~ /-[a-c,e-z]*d/ && a != "--dry-run") || a == "--debug" }
+  def self.apply(argv)
+    self.clirb.parse!(argv)
+    self.config.apply(clirb.opts)
   end
 
-  def self.debug_msg(msg)
-    "[DEBUG] #{msg}"
+  def self.bench(*args, &block)
+    self.config.bench(*args, &block)
   end
 
-  def self.debug_start_msg(msg)
-    debug_msg("#{msg}...".ljust(30))
-  end
-
-  def self.debug_finish_msg(time_in_ms)
-    " (#{time_in_ms} ms)"
-  end
-
-  def self.bench(start_msg, &block)
-    if !ATestRunner.config.debug
-      block.call; return
+  def self.run
+    begin
+      Runner.new(self.clirb.args, config: self.config).run
+    rescue CLIRB::HelpExit
+      self.config.puts self.help_msg
+    rescue CLIRB::VersionExit
+      self.config.puts self.config.version
+    rescue CLIRB::Error => exception
+      self.config.puts "#{exception.message}\n\n"
+      self.config.puts self.config.debug ? exception.backtrace.join("\n") : self.help_msg
+      exit(1)
+    rescue StandardError => exception
+      self.config.puts "#{exception.class}: #{exception.message}"
+      self.config.puts exception.backtrace.join("\n")
+      exit(1)
     end
-    self.config.stdout.print debug_start_msg(start_msg)
-    RoundedMillisecondTime.new(Benchmark.measure(&block).real).tap do |time_in_ms|
-      self.config.stdout.puts debug_finish_msg(time_in_ms)
-    end
+    exit(0)
+  end
+
+  def self.help_msg
+    "Usage: #{self.config.bin_name} [options] [TESTS]\n\n"\
+    "Options:"\
+    "#{self.clirb}"
   end
 end
 
 unless ENV["A_TEST_RUNNER_DISABLE_RUN"]
-  ATestRunner.config.debug ATestRunner.debug?(ARGV)
-
-  cli = nil
-  ATestRunner.bench("CLI init and parse"){ cli = ATestRunner::CLI.new(*ARGV) }
-  cli.run
+  ATestRunner.bench("ARGV parse and configure"){ ATestRunner.apply(ARGV) }
+  ATestRunner.run
 end
