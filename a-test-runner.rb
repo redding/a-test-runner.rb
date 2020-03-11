@@ -70,24 +70,24 @@ module ATestRunner
       @argv = argv
       @clirb = CLIRB.new do
         option "seed_value", "use a given seed to run tests", {
-          :abbrev => "s", :value => Fixnum
+          abbrev: "s", value: Integer
         }
         option "changed_only", "only run test files with changes", {
-          :abbrev => "c"
+          abbrev: "c"
         }
         option "changed_ref", "reference for changes, use with `-c` opt", {
-          :abbrev => "r", :value => ""
+          abbrev: "r", value: ""
         }
         option "verbose", "output verbose runtime test info", {
-          :abbrev => "v"
+          abbrev: "v"
         }
         option "dry_run", "output the test command to $stdout"
         option "list", "list test files on $stdout", {
-          :abbrev => "l"
+          abbrev: "l"
         }
         # show loaded test files, cli err backtraces, etc
         option "debug", "run in debug mode", {
-          :abbrev => "d"
+          abbrev: "d"
         }
       end
     end
@@ -249,7 +249,7 @@ module ATestRunner
     end
   end
 
-  class CLIRB  # Version 1.0.0, https://github.com/redding/cli.rb
+  class CLIRB  # Version 1.1.0, https://github.com/redding/cli.rb
     Error    = Class.new(RuntimeError);
     HelpExit = Class.new(RuntimeError); VersionExit = Class.new(RuntimeError)
     attr_reader :argv, :args, :opts, :data
@@ -281,26 +281,25 @@ module ATestRunner
     class Option
       attr_reader :name, :opt_name, :desc, :abbrev, :value, :klass, :parser_args
 
-      def initialize(name, *args)
-        settings, @desc = args.last.kind_of?(::Hash) ? args.pop : {}, args.pop || ""
-        @name, @opt_name, @abbrev = parse_name_values(name, settings[:abbrev])
-        @value, @klass = gvalinfo(settings[:value])
+      def initialize(name, desc = nil, abbrev: nil, value: nil)
+        @name, @desc = name, desc || ""
+        @opt_name, @abbrev = parse_name_values(name, abbrev)
+        @value, @klass = gvalinfo(value)
         @parser_args = if [TrueClass, FalseClass, NilClass].include?(@klass)
           ["-#{@abbrev}", "--[no-]#{@opt_name}", @desc]
         else
-          ["-#{@abbrev}", "--#{@opt_name} #{@opt_name.upcase}", @klass, @desc]
+          ["-#{@abbrev}", "--#{@opt_name} VALUE", @klass, @desc]
         end
       end
 
       private
 
       def parse_name_values(name, custom_abbrev)
-        [ (processed_name = name.to_s.strip.downcase), processed_name.gsub("_", "-"),
+        [ (processed_name = name.to_s.strip.downcase).gsub("_", "-"),
           custom_abbrev || processed_name.gsub(/[^a-z]/, "").chars.first || "a"
         ]
       end
-      def gvalinfo(v); v.kind_of?(Class) ? [nil,gklass(v)] : [v,gklass(v.class)]; end
-      def gklass(k); k == Fixnum ? Integer : k; end
+      def gvalinfo(v); v.kind_of?(Class) ? [nil,v] : [v,v.class]; end
     end
   end
 
