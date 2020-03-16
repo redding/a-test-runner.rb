@@ -1,4 +1,6 @@
 source "https://rubygems.org"
 
-gem "pry",    "~> 0.9.0"
-gem "assert", "~> 2.16.5"
+ruby "~> 2.4"
+
+gem "pry", "~> 0.12.2"
+gem "assert", "~> 2.18.1"
