@@ -5,7 +5,7 @@ require "set"
 
 # https://github.com/redding/a-test-runner.rb
 module ATestRunner
-  VERSION = "1.0.0"
+  VERSION = "1.0.1"
 
   # update these as needed for your test setup
   BIN_NAME           = "a-test-runner"
