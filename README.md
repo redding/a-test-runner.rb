@@ -20,9 +20,10 @@ $ runtests -h
 Usage: runtests [options] [TESTS]
 
 Options:
-    -s, --seed-value SEED-VALUE      use a given seed to run tests
+    -s, --seed-value VALUE           use a given seed to run tests
     -c, --[no-]changed-only          only run test files with changes
-    -r, --changed-ref CHANGED-REF    reference for changes, use with `-c` opt
+    -r, --changed-ref VALUE          reference for changes, use with `-c` opt
+    -p, --parallel-workers VALUE     number of parallel workers to use (if applicable)
     -v, --[no-]verbose               output verbose runtime test info
         --[no-]dry-run               output the test command to $stdout
     -l, --[no-]list                  list test files on $stdout
@@ -99,6 +100,15 @@ SEED=23940 MINITEST_REPORTER=ProgressReporter ./bin/rake test test/thing1_test.r
 
 This option only outputs the test command it would have run.  It does not execute the test command.
 
+#### Parallel Workers
+
+```
+$ runtests -p 2 --dry-run
+SEED=23940 PARALLEL_WORKERS=2 MINITEST_REPORTER=ProgressReporter ./bin/rake test test/thing1_test.rb test/thing2_test.rb
+```
+
+Force a specific number of parallel workers to run the tests. This uses the configured `PARALLEL_ENV_VAR_NAME` constant to build the env var.
+
 #### List
 
 ```
@@ -145,12 +155,14 @@ module ATestRunner
   VERSION = "x.x.x"
 
   # update these as needed for your test setup
-  BIN_NAME           = "runtests" # should match what you name the executable
-  TEST_DIR           = "test"
-  TEST_FILE_SUFFIXES = ["_test.rb"]
-  TERSE_TEST_CMD     = "MINITEST_REPORTER=ProgressReporter ./bin/rake test"
-  VERBOSE_TEST_CMD   = "MINITEST_REPORTER=SpecReporter ./bin/rake test"
-  SEED_ENV_VAR_NAME  = "SEED"
+  BIN_NAME              = "runtests" # should match what you name the executable
+  TEST_DIR              = "test"
+  TEST_FILE_SUFFIXES    = ["_test.rb"]
+  TERSE_TEST_CMD        = "MINITEST_REPORTER=ProgressReporter ./bin/rails test"
+  VERBOSE_TEST_CMD      = "MINITEST_REPORTER=SpecReporter ./bin/rails test"
+  SEED_ENV_VAR_NAME     = "SEED"
+  PARALLEL_ENV_VAR_NAME = "PARALLEL_WORKERS"
+  ENV_VARS              = "USE_SIMPLE_COV=0"
 
 # ...
 ```
@@ -162,9 +174,10 @@ $ runtests -h
 Usage: runtests [options] [TESTS]
 
 Options:
-    -s, --seed-value SEED-VALUE      use a given seed to run tests
+    -s, --seed-value VALUE           use a given seed to run tests
     -c, --[no-]changed-only          only run test files with changes
-    -r, --changed-ref CHANGED-REF    reference for changes, use with `-c` opt
+    -r, --changed-ref VALUE          reference for changes, use with `-c` opt
+    -p, --parallel-workers VALUE     number of parallel workers to use (if applicable)
     -v, --[no-]verbose               output verbose runtime test info
         --[no-]dry-run               output the test command to $stdout
     -l, --[no-]list                  list test files on $stdout

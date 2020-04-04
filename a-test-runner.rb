@@ -8,13 +8,14 @@ module ATestRunner
   VERSION = "1.0.1"
 
   # update these as needed for your test setup
-  BIN_NAME           = "a-test-runner"
-  TEST_DIR           = "test"
-  TEST_FILE_SUFFIXES = ["_test.rb"]
-  DEFAULT_TEST_CMD   = "./bin/rake test"
-  VERBOSE_TEST_CMD   = "./bin/rake test"
-  SEED_ENV_VAR_NAME  = "SEED"
-  ENV_VARS           = ""
+  BIN_NAME              = "a-test-runner"
+  TEST_DIR              = "test"
+  TEST_FILE_SUFFIXES    = ["_test.rb"]
+  DEFAULT_TEST_CMD      = "./bin/rake test"
+  VERBOSE_TEST_CMD      = "./bin/rake test"
+  SEED_ENV_VAR_NAME     = "SEED"
+  PARALLEL_ENV_VAR_NAME = "PARALLEL_WORKERS"
+  ENV_VARS              = ""
 
   class Config
     def self.settings(*items)
@@ -30,31 +31,33 @@ module ATestRunner
 
     attr_reader :stdout, :bin_name, :version, :test_dir, :test_file_suffixes
     attr_reader :default_test_cmd, :verbose_test_cmd
-    attr_reader :seed_env_var_name, :env_vars
+    attr_reader :parallel_env_var_name, :seed_env_var_name, :env_vars
 
-    settings :seed_value, :changed_only, :changed_ref
+    settings :seed_value, :changed_only, :changed_ref, :parallel_workers
     settings :verbose, :dry_run, :list, :debug
 
     def initialize(stdout = nil)
       @stdout = stdout || $stdout
 
-      @bin_name           = BIN_NAME
-      @version            = VERSION
-      @test_dir           = TEST_DIR
-      @test_file_suffixes = TEST_FILE_SUFFIXES
-      @default_test_cmd   = DEFAULT_TEST_CMD
-      @verbose_test_cmd   = VERBOSE_TEST_CMD
-      @seed_env_var_name  = SEED_ENV_VAR_NAME
-      @env_vars           = ENV_VARS
+      @bin_name              = BIN_NAME
+      @version               = VERSION
+      @test_dir              = TEST_DIR
+      @test_file_suffixes    = TEST_FILE_SUFFIXES
+      @default_test_cmd      = DEFAULT_TEST_CMD
+      @verbose_test_cmd      = VERBOSE_TEST_CMD
+      @seed_env_var_name     = SEED_ENV_VAR_NAME
+      @parallel_env_var_name = PARALLEL_ENV_VAR_NAME
+      @env_vars              = ENV_VARS
 
       # cli option settings
-      @seed_value   = begin; srand; srand % 0xFFFF; end.to_i
-      @changed_only = false
-      @changed_ref  = ""
-      @verbose      = false
-      @dry_run      = false
-      @list         = false
-      @debug        = false
+      @seed_value       = begin; srand; srand % 0xFFFF; end.to_i
+      @changed_only     = false
+      @changed_ref      = ""
+      @parallel_workers = nil
+      @verbose          = false
+      @dry_run          = false
+      @list             = false
+      @debug            = false
     end
 
     def apply(settings)
@@ -70,7 +73,7 @@ module ATestRunner
     end
 
     def debug_puts(msg)
-      self.puts self.debug_msg(msg)
+      self.puts debug_msg(msg)
     end
 
     def puts(msg)
@@ -139,8 +142,13 @@ module ATestRunner
     end
 
     def cmd_str_env
-      "#{self.config.env_vars} "\
-        "#{self.config.seed_env_var_name}=#{self.config.seed_value}"
+      "".tap do |s|
+        s << self.config.env_vars
+        s << " #{self.config.seed_env_var_name}=#{self.config.seed_value}"
+        if self.config.parallel_workers
+          s << " #{self.config.parallel_env_var_name}=#{self.config.parallel_workers}"
+        end
+      end
     end
 
     def cmd_str_cmd
@@ -295,6 +303,9 @@ module ATestRunner
       }
       option "changed_ref", "reference for changes, use with `-c` opt", {
         abbrev: "r", value: ""
+      }
+      option "parallel_workers", "number of parallel workers to use (if applicable)", {
+        abbrev: "p", value: Integer
       }
       option "verbose", "output verbose runtime test info", {
         abbrev: "v"
