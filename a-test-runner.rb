@@ -325,6 +325,7 @@ module ATestRunner
 
   def self.run
     begin
+      bench("ARGV parse and configure"){ apply(ARGV) }
       Runner.new(self.clirb.args, config: self.config).run
     rescue CLIRB::HelpExit
       self.config.puts self.help_msg
@@ -350,6 +351,5 @@ module ATestRunner
 end
 
 unless ENV["A_TEST_RUNNER_DISABLE_RUN"]
-  ATestRunner.bench("ARGV parse and configure"){ ATestRunner.apply(ARGV) }
   ATestRunner.run
 end
