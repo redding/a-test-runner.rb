@@ -1,3 +1,5 @@
+=== **This is archived an no longer maintained** in favor of https://github.com/redding/t.rb ===
+
 # a-test-runner.rb
 
 This is a CLI that generates and executes ruby test commands.  Copy/rename it into your $PATH and customize the CONSTANT values at the top of the script for your test setup.
